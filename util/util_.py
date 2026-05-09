@@ -589,8 +589,18 @@ def crop_mesh(mesh, keep_vert_inds):
     new_mesh['faces'] = new_faces
     if 'colors' in new_mesh:
         new_mesh['colors'] = new_mesh['colors'][keep_vert_inds]
+    remap_vertex_aligned_uvs = 'UVs' in new_mesh and len(new_mesh['UVs']) == len(vertices)
+    if remap_vertex_aligned_uvs:
+        new_mesh['UVs'] = new_mesh['UVs'][keep_vert_inds]
     if 'faces_uv' in new_mesh:
-        new_mesh['faces_uv'] = new_mesh['faces_uv'][keep_face_inds]
+        if remap_vertex_aligned_uvs:
+            new_faces_uv = []
+            faces_uv = mesh['faces_uv'] - 1
+            for face_ind in keep_face_inds:
+                new_faces_uv.append([inds_mapping[ind] for ind in faces_uv[face_ind]])
+            new_mesh['faces_uv'] = np.array(new_faces_uv) + 1
+        else:
+            new_mesh['faces_uv'] = new_mesh['faces_uv'][keep_face_inds]
     if 'faces_normal' in new_mesh:
         new_mesh['faces_normal'] = new_mesh['faces_normal'][keep_face_inds]
 

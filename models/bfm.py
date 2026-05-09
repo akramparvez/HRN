@@ -565,15 +565,27 @@ class ParametricFaceModel:
         ''' Convert displacement map into detail normal map
         '''
         batch_size = uv_z.shape[0]
+        _, _, uv_h, uv_w = uv_z.shape
         uv_coarse_vertices = self.render.world2uv(coarse_verts)
         uv_coarse_normals = self.render.world2uv(coarse_normals)
 
         uv_detail_vertices = uv_coarse_vertices + uv_z * uv_coarse_normals
         dense_vertices = uv_detail_vertices.permute(0, 2, 3, 1).reshape([batch_size, -1, 3])
         dense_faces = self.render.dense_faces.expand(batch_size, -1, -1)
+        y_coords, x_coords = torch.meshgrid(
+            torch.arange(uv_h, device=uv_z.device, dtype=torch.float32),
+            torch.arange(uv_w, device=uv_z.device, dtype=torch.float32),
+            indexing='ij'
+        )
+        dense_uvs = torch.stack(
+            [x_coords / (uv_w - 1), 1.0 - y_coords / (uv_h - 1)],
+            dim=-1
+        ).reshape(1, -1, 2).expand(batch_size, -1, -1)
         dense_mesh = {
             'vertices': dense_vertices,
             'faces': dense_faces,
+            'UVs': dense_uvs,
+            'faces_uv': dense_faces,
         }
         return dense_mesh
 

@@ -798,6 +798,8 @@ class FaceReconModel(BaseModel):
         dense_vertices_batch = self.extra_results['dense_mesh']['vertices']
         dense_vertices_batch = dense_vertices_batch.detach().cpu().numpy()
         dense_faces_batch = self.extra_results['dense_mesh']['faces'].detach().cpu().numpy()
+        dense_uvs_batch = self.extra_results['dense_mesh']['UVs'].detach().cpu().numpy()
+        dense_faces_uv_batch = self.extra_results['dense_mesh']['faces_uv'].detach().cpu().numpy()
 
 
         texture_map_batch = (255.0 * self.pred_color_high).permute(0, 2, 3, 1).detach().cpu().numpy()[..., ::-1]
@@ -825,6 +827,9 @@ class FaceReconModel(BaseModel):
             dense_mesh = {
                 'vertices': dense_vertices_batch[i],
                 'faces': dense_faces_batch[i],
+                'UVs': dense_uvs_batch[i],
+                'faces_uv': dense_faces_uv_batch[i],
+                'texture_map': texture_map,
             }
             vertices_zero = dense_mesh['vertices'] == 0.0
             keep_inds = np.where((vertices_zero[:, 0] * vertices_zero[:, 1] * vertices_zero[:, 2]) == False)[0]
