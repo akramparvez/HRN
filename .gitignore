@@ -1,1 +1,7 @@
 .idea
+.venv/
+__pycache__/
+*.pyc
+assets/3dmm_assets/
+assets/pretrained_models/
+outputs/

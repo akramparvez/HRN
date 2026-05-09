@@ -6,6 +6,7 @@ from util.load_mats import transferBFM09
 import os
 from util.renderer import SRenderY, set_rasterizer
 from util import deca_util
+from util.device import get_torch_device
 
 
 def perspective_projection(focal, center):
@@ -65,9 +66,9 @@ class ParametricFaceModel:
         self.mean_tex_uv = self.mean_tex_uv.reshape((1, -1))
         self.tex_base_uv = np.load('assets/3dmm_assets/bfm_albedo_map_basis/bfm_texmap_base2.npy')
         self.tex_base_uv = self.tex_base_uv.reshape((-1, 80))
-        set_rasterizer('pytorch3d')
+        set_rasterizer('mtldiffrast')
         self.render = SRenderY(224, uv_size=256,
-                               rasterizer_type='pytorch3d').to(torch.device('cuda'))
+                               rasterizer_type='mtldiffrast').to(get_torch_device())
 
         # face indices for each vertex that lies in. starts from 0. [N,8]
         self.point_buf = model['point_buf'].astype(np.int64) - 1  # (35709, 8)
@@ -106,7 +107,10 @@ class ParametricFaceModel:
         self.device = device
         for key, value in self.__dict__.items():
             if type(value).__module__ == np.__name__:
-                setattr(self, key, torch.tensor(value).to(device))
+                tensor = torch.from_numpy(value)
+                if tensor.is_floating_point():
+                    tensor = tensor.float()
+                setattr(self, key, tensor.to(device))
 
     
     def compute_shape(self, id_coeff, exp_coeff):
@@ -653,4 +657,3 @@ class ParametricFaceModel:
         face_shape = face_shape + offset_shape
 
         return face_shape, offset_shape
-

@@ -1,12 +1,14 @@
 import torch
 from .unet import UNet
+from util.device import get_torch_device, load_checkpoint
 
 
 class DeRetouchingModule():
-    def __init__(self, ckpt_path):
-        self.retouching_network = UNet(3, 3).to('cuda')
+    def __init__(self, ckpt_path, device=None):
+        self.device = get_torch_device() if device is None else torch.device(device)
+        self.retouching_network = UNet(3, 3).to(self.device)
         self.retouching_network.load_state_dict(
-            torch.load(ckpt_path, map_location='cpu')['generator'])
+            load_checkpoint(ckpt_path, self.device)['generator'])
         self.retouching_network.eval()
 
     def run(self, face_albedo_map, texture_map):
@@ -21,7 +23,7 @@ class DeRetouchingModule():
         # retouch_input = texture_map
 
         # predict blend layer
-        blend_layer = self.retouching_network(retouch_input)  # value: 0~1
+        blend_layer = self.retouching_network(retouch_input.to(self.device))  # value: 0~1
         blend_layer = torch.nn.functional.interpolate(blend_layer, (h, w), mode='bilinear')
 
         # retouch texture map

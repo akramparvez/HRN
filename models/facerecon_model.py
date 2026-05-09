@@ -112,10 +112,10 @@ class FaceReconModel(BaseModel):
         )
 
         self.bfm_UVs = np.load('assets/3dmm_assets/template_mesh/bfm_uvs2.npy')
-        self.bfm_UVs = torch.from_numpy(self.bfm_UVs).to(torch.device('cuda')).float()
+        self.bfm_UVs = torch.from_numpy(self.bfm_UVs).float().to(self.device)
 
         de_retouching_path = 'assets/pretrained_models/de-retouching.pth'
-        self.de_retouching_module = DeRetouchingModule(de_retouching_path)
+        self.de_retouching_module = DeRetouchingModule(de_retouching_path, device=self.device)
 
         self.mid_opt = Pix2PixOptions()
         self.mid_opt.input_nc = 6
@@ -144,7 +144,7 @@ class FaceReconModel(BaseModel):
 
         # self.net_recog = networks.define_net_recog(
         #     net_recog=opt.net_recog, pretrained_path=opt.net_recog_path
-        #     ).cuda()
+        #     ).to(self.device)
         # loss func name: (compute_%s_loss) % loss_name
         self.compute_feat_loss = perceptual_loss
         self.comupte_color_loss = photo_loss
@@ -887,6 +887,3 @@ class FaceReconModel(BaseModel):
             results_list.append(results)
 
         return results_list
-
-
-

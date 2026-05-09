@@ -1,0 +1,34 @@
+[project]
+name = "hrn"
+version = "0.1.0"
+description = "HRN face reconstruction runtime modernized for Python 3.13 on Apple Silicon macOS."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "albumentations",
+    "einops",
+    "face-alignment",
+    "imageio",
+    "kornia",
+    "mtldiffrast @ git+https://github.com/pedronaugusto/mtldiffrast.git",
+    "numba",
+    "numpy",
+    "ninja",
+    "opencv-python-headless",
+    "pillow",
+    "scikit-image",
+    "scipy",
+    "tensorboard",
+    "tensorflow",
+    "torch",
+    "torchsummary",
+    "torchvision",
+    "tqdm",
+    "trimesh",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.extra-build-dependencies]
+mtldiffrast = ["torch"]

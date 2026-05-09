@@ -1,5 +1,6 @@
 import argparse
 import os
+import torch
 from util import util_
 import models
 
@@ -136,6 +137,8 @@ class BaseOptions():
         # if len(opt.gpu_ids) > 0:
         #     torch.cuda.set_device(gpu_ids[0])
         if opt.world_size == 1:
+            opt.use_ddp = False
+        if not torch.cuda.is_available():
             opt.use_ddp = False
 
         if opt.phase != 'test':

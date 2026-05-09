@@ -4,8 +4,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from . import deca_util
 from .util_ import read_obj
+import mtldiffrast.torch as dr
 
 def set_rasterizer(type = 'pytorch3d'):
+    if type == 'mtldiffrast':
+        return
     if type == 'pytorch3d':
         global Meshes, load_obj, rasterize_meshes
         from pytorch3d.structures import Meshes
@@ -153,14 +156,52 @@ class Pytorch3dRasterizer(nn.Module):
         # import ipdb; ipdb.set_trace()
         return pixel_vals
 
+class MtlDiffrastRasterizer(nn.Module):
+    """nvdiffrast-style Metal rasterizer for per-face vertex attributes."""
+
+    def __init__(self, image_size=224):
+        super().__init__()
+        self.image_size = image_size
+        self.ctx = None
+
+    def forward(self, vertices, faces, attributes=None, h=None, w=None):
+        if attributes is None:
+            raise ValueError("attributes are required for HRN rendering")
+        if self.ctx is None:
+            self.ctx = dr.MtlRasterizeContext()
+
+        if h is None and w is None:
+            h = w = self.image_size
+        elif w is None:
+            w = h
+        elif h is None:
+            h = w
+
+        batch_size, face_count = faces.shape[:2]
+        face_vertices = deca_util.face_vertices(vertices, faces)
+        pos = face_vertices.reshape(batch_size, face_count * 3, 3).float()
+        if pos.shape[-1] == 3:
+            ones = torch.ones((*pos.shape[:2], 1), device=pos.device, dtype=pos.dtype)
+            pos = torch.cat([pos, ones], dim=-1)
+
+        attr = attributes.reshape(batch_size, face_count * 3, attributes.shape[-1]).contiguous()
+        tri = torch.arange(face_count * 3, device=vertices.device, dtype=torch.int32).reshape(face_count, 3)
+        rast, _ = dr.rasterize(self.ctx, pos.contiguous(), tri, resolution=[h, w])
+        pixel_vals, _ = dr.interpolate(attr, rast, tri)
+        vismask = (rast[..., 3] > 0).float()
+        pixel_vals = pixel_vals * vismask[..., None]
+        pixel_vals = pixel_vals.permute(0, 3, 1, 2)
+        return torch.cat([pixel_vals, vismask[:, None, :, :]], dim=1)
+
 class SRenderY(nn.Module):
     def __init__(self, image_size, obj_filename='assets/3dmm_assets/template_mesh/template_bfm.obj', uv_size=256, rasterizer_type='pytorch3d'):
         super(SRenderY, self).__init__()
         self.image_size = image_size
         self.uv_size = uv_size
-        if rasterizer_type == 'pytorch3d':
-            self.rasterizer = Pytorch3dRasterizer(image_size)
-            self.uv_rasterizer = Pytorch3dRasterizer(uv_size)
+        if rasterizer_type in ('pytorch3d', 'mtldiffrast'):
+            rasterizer_cls = MtlDiffrastRasterizer if rasterizer_type == 'mtldiffrast' else Pytorch3dRasterizer
+            self.rasterizer = rasterizer_cls(image_size)
+            self.uv_rasterizer = rasterizer_cls(uv_size)
             # verts, faces, aux = load_obj(obj_filename)
             # uvcoords = aux.verts_uvs[None, ...]      # (N, V, 2)
             # uvfaces = faces.textures_idx[None, ...] # (N, F, 3)
@@ -168,13 +209,13 @@ class SRenderY(nn.Module):
 
             mesh = read_obj(obj_filename)
             uvcoords = np.load('assets/3dmm_assets/template_mesh/bfm_uvs2.npy')[None, ...]
-            uvcoords = torch.from_numpy(uvcoords)
+            uvcoords = torch.from_numpy(uvcoords).float()
             verts = mesh['vertices']
-            verts = torch.from_numpy(verts)
+            verts = torch.from_numpy(verts).float()
             uvfaces = mesh['faces'][None, ...] - 1
-            uvfaces = torch.from_numpy(uvfaces)
+            uvfaces = torch.from_numpy(uvfaces).long()
             faces = mesh['faces'][None, ...] - 1
-            faces = torch.from_numpy(faces)
+            faces = torch.from_numpy(faces).long()
         elif rasterizer_type == 'standard':
             self.rasterizer = StandardRasterizer(image_size)
             self.uv_rasterizer = StandardRasterizer(uv_size)

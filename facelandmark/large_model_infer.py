@@ -8,6 +8,7 @@ import math
 import torch
 import time
 import os
+from util.device import get_torch_device, load_checkpoint
 INPUT_SIZE = 224
 ENLARGE_RATIO = 1.35
 from util.util_ import spread_flow, viz_flow
@@ -83,11 +84,12 @@ class FaceInfo:
 
 class LargeModelInfer:
 
-    def __init__(self,ckpt,  device='cuda'):
-        self.large_base_lmks_model = LargeBaseLmkInfer.model_preload(ckpt,  device.lower() == "cuda")
-        self.device = device.lower()
-        self.detector = Model(max_size=512, device=device)
-        state_dict = torch.load(os.path.join(os.path.dirname(ckpt), 'retinaface_resnet50_2020-07-20_old_torch.pth' ) , map_location="cpu")
+    def __init__(self,ckpt,  device=None):
+        self.device = get_torch_device() if device is None else torch.device(device)
+        self.large_base_lmks_model = LargeBaseLmkInfer.model_preload(ckpt, self.device)
+        detector_device = "cpu" if self.device.type == "mps" else str(self.device)
+        self.detector = Model(max_size=512, device=detector_device)
+        state_dict = load_checkpoint(os.path.join(os.path.dirname(ckpt), 'retinaface_resnet50_2020-07-20_old_torch.pth'), "cpu")
         # torch.save(state_dict, './models/retinaface_resnet50_2020-07-20_old_torch.pth', _use_new_zipfile_serialization=False)
         self.detector.load_state_dict(state_dict)
         self.detector.eval()
@@ -149,7 +151,7 @@ class LargeModelInfer:
             # cv2.imshow("crop resize", crop_img.astype(np.uint8))
             # cv2.waitKey()
 
-            base_lmks = LargeBaseLmkInfer.infer_img(crop_img, self.large_base_lmks_model, self.device=="cuda")
+            base_lmks = LargeBaseLmkInfer.infer_img(crop_img, self.large_base_lmks_model, self.device)
 
             inv_scale = sz / INPUT_SIZE
 
@@ -198,7 +200,7 @@ class LargeModelInfer:
             # cv2.imshow("crop resize", crop_img.astype(np.uint8))
             # cv2.waitKey()
 
-            base_lmks = LargeBaseLmkInfer.infer_img(crop_img, self.large_base_lmks_model, self.device.lower()=="cuda")
+            base_lmks = LargeBaseLmkInfer.infer_img(crop_img, self.large_base_lmks_model, self.device)
 
             inv_scale = sz / INPUT_SIZE
 

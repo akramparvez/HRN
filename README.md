@@ -38,32 +38,17 @@ Clone the repo:
   ```  
 
 ### Requirements
-**This implementation is only tested under Ubuntu/CentOS environment with Nvidia GPUs and CUDA installed.**
+This fork targets Apple Silicon macOS with Python 3.13 managed by `uv`. PyTorch uses MPS when available and falls back to CPU.
 
-* Python >= 3.8
-* PyTorch >= 1.6
-* Basic requirements, you can run 
+* Python 3.13
+* Xcode command line tools
+* PyTorch with MPS support
+* [mtldiffrast](https://github.com/pedronaugusto/mtldiffrast) for Metal differentiable rasterization
+* Basic requirements:
   ```bash
-  conda create -n HRN python=3.8
-  source activate HRN
-  pip install -r requirements.txt
+  uv python pin 3.13
+  uv sync
   ```
-* [pytorch3d](https://github.com/facebookresearch/pytorch3d/blob/main/INSTALL.md)
-* [nvdiffrast](https://nvlabs.github.io/nvdiffrast/#installation)
-  ```bash
-  cd ..
-  git clone https://github.com/NVlabs/nvdiffrast.git
-  cd nvdiffrast
-  pip install .
-  
-  apt-get install freeglut3-dev
-  apt-get install binutils-gold g++ cmake libglew-dev mesa-common-dev build-essential libglew1.5-dev libglm-dev
-  apt-get install mesa-utils
-  apt-get install libegl1-mesa-dev 
-  apt-get install libgles2-mesa-dev
-  apt-get install libnvidia-gl-525
-  ```
-  If there is a "[F glutil.cpp:338] eglInitialize() failed" error, you can try to change all the "dr.RasterizeGLContext" in util/nv_diffrast.py into "dr.RasterizeCudaContext".
 
 ### Testing with pre-trained network
 1. Prepare assets and pretrained models
@@ -75,12 +60,12 @@ Clone the repo:
    
     a. single-view face reconstruction 
     ```bash
-    CUDA_VISIBLE_DEVICES=0 python demo.py --input_type single_view --input_root ./assets/examples/single_view_image --output_root ./assets/examples/single_view_image_results
+    uv run python demo.py --input_type single_view --input_root ./assets/examples/single_view_image --output_root ./assets/examples/single_view_image_results
     ```
 
     b. multi-view face reconstruction  
     ```bash
-    CUDA_VISIBLE_DEVICES=0 python demo.py --input_type multi_view --input_root ./assets/examples/multi_view_images --output_root ./assets/examples/multi_view_image_results
+    uv run python demo.py --input_type multi_view --input_root ./assets/examples/multi_view_images --output_root ./assets/examples/multi_view_image_results
     ```   
     where the "input_root" saves the multi-view images of the same subject. 
  
@@ -129,7 +114,7 @@ If you use our work in your research, please cite our publication:
 There are some functions or scripts in this implementation that are based on external sources. We thank the authors for their excellent works.  
 Here are some great resources we benefit:  
 - [Deep3DFaceRecon_pytorch](https://github.com/sicxu/Deep3DFaceRecon_pytorch) for the base model of HRN.
-- [DECA](https://pytorch3d.org/), [Pytorch3D](https://github.com/facebookresearch/pytorch3d), [nvdiffrast](https://github.com/NVlabs/nvdiffrast) for rendering.
+- [DECA](https://pytorch3d.org/), [Pytorch3D](https://github.com/facebookresearch/pytorch3d), [nvdiffrast](https://github.com/NVlabs/nvdiffrast), and [mtldiffrast](https://github.com/pedronaugusto/mtldiffrast) for rendering.
 - [pix2pix](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix) for the image translation network.
 - [retinaface](https://github.com/biubug6/Pytorch_Retinaface) for face detector.
 - [face-alignment](https://github.com/1adrianb/face-alignment) for cropping.

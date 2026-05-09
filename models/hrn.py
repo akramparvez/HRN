@@ -13,6 +13,7 @@ import PIL.Image
 from util.util_ import resize_on_long_side, split_vis
 import face_alignment
 import tensorflow as tf
+from util.device import get_torch_device
 
 
 if tf.__version__ >= '2.0':
@@ -24,10 +25,9 @@ class Reconstructor():
     def __init__(self, params):
         opt = TestOptions().parse(params)
         self.phase = opt.phase
-        self.face_mark_model = LargeModelInfer("assets/pretrained_models/large_base_net.pth", device='cuda')
+        device = get_torch_device()
+        self.face_mark_model = LargeModelInfer("assets/pretrained_models/large_base_net.pth", device=device)
 
-        device = torch.device(0)
-        torch.cuda.set_device(device)
         self.model = create_model(opt)
         self.model.setup(opt)
         self.model.device = device
@@ -35,7 +35,11 @@ class Reconstructor():
         self.model.eval()
         self.model.set_render(opt, image_res=512)
 
-        self.lm_sess = face_alignment.FaceAlignment(face_alignment.LandmarksType._3D, flip_input=False)
+        self.lm_sess = face_alignment.FaceAlignment(
+            face_alignment.LandmarksType.THREE_D,
+            flip_input=False,
+            device=str(device),
+        )
 
         config = tf.ConfigProto(allow_soft_placement=True)
         config.gpu_options.per_process_gpu_memory_fraction = 0.2
@@ -72,8 +76,8 @@ class Reconstructor():
             im_lr = torch.tensor(np.array(im_lr) / 255., dtype=torch.float32).permute(2, 0, 1).unsqueeze(0)
             im_hd = torch.tensor(np.array(im_hd) / 255., dtype=torch.float32).permute(2, 0, 1).unsqueeze(0)
             mask_lr = torch.tensor(np.array(mask_lr) / 255., dtype=torch.float32)[None, None, :, :]
-            lm_lr = torch.tensor(lm_lr).unsqueeze(0)
-            lm_hd = torch.tensor(lm_hd).unsqueeze(0)
+            lm_lr = torch.tensor(lm_lr, dtype=torch.float32).unsqueeze(0)
+            lm_hd = torch.tensor(lm_hd, dtype=torch.float32).unsqueeze(0)
         return im_lr, lm_lr, im_hd, lm_hd, mask_lr
 
     def parse_label(self, label):

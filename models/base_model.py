@@ -4,6 +4,7 @@ import torch
 from collections import OrderedDict
 from abc import ABC, abstractmethod
 from . import networks
+from util.device import get_torch_device, load_checkpoint
 
 
 class BaseModel(ABC):
@@ -32,7 +33,7 @@ class BaseModel(ABC):
         """
         self.opt = opt
         self.isTrain = opt.isTrain
-        self.device = torch.device('cuda')
+        self.device = get_torch_device()
         self.save_dir = os.path.join(opt.checkpoints_dir, opt.name)  # save all the checkpoints to save_dir
         self.loss_names = []
         self.model_names = []
@@ -98,7 +99,7 @@ class BaseModel(ABC):
             self.schedulers = [networks.get_scheduler(optimizer, opt) for optimizer in self.optimizers]
 
         if opt.base_ckpt_path != '':
-            state_dict = torch.load(opt.base_ckpt_path, map_location=self.device)
+            state_dict = load_checkpoint(opt.base_ckpt_path, self.device)
             print('loading the base model from %s' % opt.base_ckpt_path)
 
             net = self.net_recon
@@ -125,9 +126,13 @@ class BaseModel(ABC):
                     module = getattr(self, name)
                     if convert_sync_batchnorm:
                         module = torch.nn.SyncBatchNorm.convert_sync_batchnorm(module)
-                    setattr(self, name, torch.nn.parallel.DistributedDataParallel(module.to(self.device),
-                        device_ids=[self.device.index], 
-                        find_unused_parameters=True, broadcast_buffers=True))
+                    ddp_kwargs = {
+                        "find_unused_parameters": True,
+                        "broadcast_buffers": True,
+                    }
+                    if self.device.type == "cuda":
+                        ddp_kwargs["device_ids"] = [self.device.index]
+                    setattr(self, name, torch.nn.parallel.DistributedDataParallel(module.to(self.device), **ddp_kwargs))
             
             # DistributedDataParallel is not needed when a module doesn't have any parameter that requires a gradient.
             for name in self.parallel_names:
@@ -277,7 +282,7 @@ class BaseModel(ABC):
             load_dir = self.save_dir    
         load_filename = 'epoch_%s.pth' % (epoch)
         load_path = os.path.join(load_dir, load_filename)
-        state_dict = torch.load(load_path, map_location=self.device)
+        state_dict = load_checkpoint(load_path, self.device)
         print('loading the model from %s' % load_path)
 
         for name in self.model_names:
@@ -287,8 +292,8 @@ class BaseModel(ABC):
                     net = net.module
                 net.load_state_dict(state_dict[name], strict=False)
 
-        self.alpha = state_dict['alpha']
-        self.beta = state_dict['beta']
+        self.alpha = state_dict['alpha'].to(self.device)
+        self.beta = state_dict['beta'].to(self.device)
 
         if self.opt.phase != 'test':
             if self.opt.continue_train:

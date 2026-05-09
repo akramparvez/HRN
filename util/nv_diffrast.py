@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from typing import List
-import nvdiffrast.torch as dr
+import mtldiffrast.torch as dr
 from torch import nn
 from models.losses import TVLoss, TVLoss_std
 import warnings
@@ -82,8 +82,7 @@ class MeshRenderer(nn.Module):
 
         vertex_ndc = vertex @ ndc_proj.t()
         if self.glctx is None:
-            self.glctx = dr.RasterizeGLContext(device=device)
-            # print("create glctx on device cuda:%d"%device.index)
+            self.glctx = dr.MtlRasterizeContext()
 
         # print('vertex_ndc shape:{}'.format(vertex_ndc.shape))  # Size([1, 35709, 4])
         # print('tri shape:{}'.format(tri.shape)) #Size([70789, 3])
@@ -170,8 +169,7 @@ class MeshRenderer(nn.Module):
 
         vertex_ndc = vertex @ ndc_proj.t()
         if self.glctx is None:
-            self.glctx = dr.RasterizeGLContext(device=device)
-            # print("create glctx on device cuda:%d" % device.index)
+            self.glctx = dr.MtlRasterizeContext()
 
         # print('vertex_ndc shape:{}'.format(vertex_ndc.shape))  # Size([1, 35709, 4])
         # print('tri shape:{}'.format(tri.shape))  # Size([70789, 3])
@@ -241,8 +239,7 @@ class MeshRenderer(nn.Module):
 
         vertex_ndc = vertex @ ndc_proj.t()
         if self.glctx is None:
-            self.glctx = dr.RasterizeGLContext(device=device)
-            # print("create glctx on device cuda:%d" % device.index)
+            self.glctx = dr.MtlRasterizeContext()
 
         # print('vertex_ndc shape:{}'.format(vertex_ndc.shape))  # Size([1, 35709, 4])
         # print('tri shape:{}'.format(tri.shape))  # Size([70789, 3])
@@ -283,11 +280,10 @@ class MeshRenderer(nn.Module):
         valid_pixel_count =  torch.sum(mask)
         mean_color = mean_color/ valid_pixel_count
 
-        tex = torch.zeros((1, 64, 64, 3), dtype=torch.float32)
+        tex = torch.zeros((1, 64, 64, 3), dtype=torch.float32, device=device)
         tex[:, :, :, 0] = mean_color[0,0]
         tex[:, :, :, 1] = mean_color[0,1]
         tex[:, :, :, 2] = mean_color[0,2]
-        tex = tex.cuda()
 
         tex_resolution_list = []
         cur_tex_size = 64
@@ -298,10 +294,9 @@ class MeshRenderer(nn.Module):
             else:
                 cur_tex_size = min(cur_tex_size * 2, tex_size)
 
-        tex_mask = torch.zeros((1, tex_size, tex_size, 3), dtype=torch.float32)
+        tex_mask = torch.zeros((1, tex_size, tex_size, 3), dtype=torch.float32, device=device)
         # tex_mask = torch.zeros((1, 2048, 2048, 3), dtype=torch.float32)
         tex_mask[:, :, :, 1] = 1.0
-        tex_mask = tex_mask.cuda()
         tex_mask.requires_grad = True
         tex_mask = tex_mask.contiguous()
 
@@ -362,4 +357,3 @@ class MeshRenderer(nn.Module):
         tex_mask = 1.0 - tex_mask
 
         return mask, depth, image, tex.detach(), tex_mask
-

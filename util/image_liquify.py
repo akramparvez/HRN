@@ -5,6 +5,7 @@ import numba
 import time
 import torch
 import torch.nn.functional as F
+from util.device import get_torch_device
 
 
 def viz_flow(flow):
@@ -41,13 +42,14 @@ def bilinear_interp(x, y, v11, v12, v21, v22):
 
 
 def image_warp_cuda(flow, oriImg):
-    x = torch.from_numpy(oriImg.astype(np.float32)).cuda()
+    device = get_torch_device()
+    x = torch.from_numpy(oriImg.astype(np.float32)).to(device)
     x = x.permute((2, 0, 1)).unsqueeze(0)
 
-    flow_tensor = torch.from_numpy(flow).unsqueeze(0).cuda()
+    flow_tensor = torch.from_numpy(flow).unsqueeze(0).to(device)
 
     n, c, h, w = x.size()
-    yv, xv = torch.meshgrid([torch.arange(h), torch.arange(w)])
+    yv, xv = torch.meshgrid([torch.arange(h), torch.arange(w)], indexing='ij')
     xv = xv.float() / (w - 1) * 2.0 - 1
     yv = yv.float() / (h - 1) * 2.0 - 1
 
@@ -64,10 +66,7 @@ def image_warp_cuda(flow, oriImg):
 
     '''
 
-    if torch.cuda.is_available():
-        grid = torch.cat((xv.unsqueeze(-1), yv.unsqueeze(-1)), -1).unsqueeze(0).cuda()
-    else:
-        grid = torch.cat((xv.unsqueeze(-1), yv.unsqueeze(-1)), -1).unsqueeze(0)
+    grid = torch.cat((xv.unsqueeze(-1), yv.unsqueeze(-1)), -1).unsqueeze(0).to(device)
 
     flow_tensor[:, :, :, 0] /= flow.shape[1]
     flow_tensor[:, :, :, 1] /= flow.shape[0]
@@ -434,4 +433,3 @@ if __name__ == "__main__":
     rdy_vis = np.zeros((oriImg.shape[0], oriImg.shape[1]), dtype=np.float)
     liquified_img = image_warp(oriImg.shape[1], oriImg.shape[0], rDx, rDy, oriImg, 0.8, newImg)
     cv2.imwrite('liquified.jpg', liquified_img)
-

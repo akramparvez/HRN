@@ -3,11 +3,24 @@ import torch
 import torch.nn as nn
 from kornia.geometry import warp_affine
 import torch.nn.functional as F
-from pytorch3d.ops import (
-    corresponding_points_alignment,
-    knn_points,
-    knn_gather
-)
+
+try:
+    from pytorch3d.ops import knn_points, knn_gather
+except ImportError:
+    class _KnnResult:
+        def __init__(self, idx):
+            self.idx = idx
+
+    def knn_points(x, y, K=1):
+        dists = torch.cdist(x, y)
+        return _KnnResult(torch.topk(dists, k=K, largest=False).indices)
+
+    def knn_gather(y, idx):
+        batch, points, k = idx.shape
+        dim = y.shape[-1]
+        expanded = y[:, None, :, :].expand(batch, points, -1, dim)
+        gather_idx = idx[..., None].expand(batch, points, k, dim)
+        return torch.gather(expanded, 2, gather_idx)
 
 def resize_n_crop(image, M, dsize=112):
     # image: (b, c, h, w)
@@ -329,6 +342,5 @@ class GANLoss(nn.Module):
             return loss / len(input)
         else:
             return self.loss(input, target_is_real, for_discriminator)
-
 
 

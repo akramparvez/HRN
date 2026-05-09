@@ -6,7 +6,8 @@ import os
 from skimage import transform as trans
 import torch
 import warnings
-warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) 
+if hasattr(np, "VisibleDeprecationWarning"):
+    warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 warnings.filterwarnings("ignore", category=FutureWarning) 
 
 
@@ -131,12 +132,15 @@ def align_for_lm(img, five_points):
 
 # resize and crop images for face reconstruction
 def resize_n_crop_img(img, lm, t, s, target_size=224., mask=None):
+    t = np.asarray(t, dtype=np.float32).reshape(-1)
+    s = float(np.asarray(s, dtype=np.float32).reshape(-1)[0])
+    target_size = int(target_size)
     w0, h0 = img.size
-    w = (w0*s).astype(np.int32)
-    h = (h0*s).astype(np.int32)
-    left = (w/2 - target_size/2 + float((t[0] - w0/2)*s)).astype(np.int32)
+    w = int(round(w0 * s))
+    h = int(round(h0 * s))
+    left = int(round(w / 2 - target_size / 2 + float((t[0] - w0 / 2) * s)))
     right = left + target_size
-    up = (h/2 - target_size/2 + float((h0/2 - t[1])*s)).astype(np.int32)
+    up = int(round(h / 2 - target_size / 2 + float((h0 / 2 - t[1]) * s)))
     below = up + target_size
 
     new_img = img.resize((w, h), resample=Image.BICUBIC)
@@ -187,11 +191,12 @@ def align_img(img, lm, lm3D, mask=None, target_size=224., rescale_factor=102.):
     # print('lm5p:{}'.format(lm5p))
     # print('lm3D:{}'.format(lm3D))
     t, s = POS(lm5p.transpose(), lm3D.transpose())
-    s = rescale_factor/s
+    t = np.asarray(t, dtype=np.float32).reshape(-1)
+    s = float(rescale_factor / np.asarray(s, dtype=np.float32).reshape(-1)[0])
 
     # processing the image
     img_new, lm_new, mask_new = resize_n_crop_img(img, lm, t, s, target_size=target_size, mask=mask)
-    trans_params = np.array([w0, h0, s, t[0], t[1]])
+    trans_params = np.array([w0, h0, s, t[0], t[1]], dtype=np.float32)
 
     return trans_params, img_new, lm_new, mask_new
 

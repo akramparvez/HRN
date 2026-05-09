@@ -698,7 +698,7 @@ def warp(x, flow, mode='bilinear', padding_mode='zeros', coff=0.1):
 
     """
     n, c, h, w = x.size()
-    yv, xv = torch.meshgrid([torch.arange(h), torch.arange(w)])
+    yv, xv = torch.meshgrid([torch.arange(h), torch.arange(w)], indexing='ij')
     xv = xv.float() / (w - 1) * 2.0 - 1
     yv = yv.float() / (h - 1) * 2.0 - 1
 
@@ -715,10 +715,7 @@ def warp(x, flow, mode='bilinear', padding_mode='zeros', coff=0.1):
 
     '''
 
-    if torch.cuda.is_available():
-        grid = torch.cat((xv.unsqueeze(-1), yv.unsqueeze(-1)), -1).unsqueeze(0).cuda()
-    else:
-        grid = torch.cat((xv.unsqueeze(-1), yv.unsqueeze(-1)), -1).unsqueeze(0)
+    grid = torch.cat((xv.unsqueeze(-1), yv.unsqueeze(-1)), -1).unsqueeze(0).to(flow.device)
     grid_x = grid + 2 * flow * coff
     warp_x = F.grid_sample(x, grid_x, mode=mode, padding_mode=padding_mode)
     return warp_x

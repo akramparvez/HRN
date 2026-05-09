@@ -159,9 +159,7 @@ class UNet(nn.Module):
 
 
 if __name__ == '__main__':
-    import os
-
-    os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+    from util.device import get_torch_device
 
 
     def weights_init(m):
@@ -173,10 +171,11 @@ if __name__ == '__main__':
                 torch.nn.init.constant_(m.bias.data, 0.0)
 
 
-    model = UNet(3, 3, deep_supervision=True).cuda()
+    device = get_torch_device()
+    model = UNet(3, 3, deep_supervision=True).to(device)
     model.apply(weights_init)
 
-    x = torch.randn((1, 3, 512, 512)).cuda()
+    x = torch.randn((1, 3, 512, 512), device=device)
 
     for i in range(1000):
         y0, y1, y2, y3, y4 = model(x)
@@ -192,7 +191,7 @@ if __name__ == '__main__':
 #
 # # model.apply(weights_init)
 # # # model.load_state_dict(torch.load('./MODEL.pth'))
-# model = model.cuda()
+# model = model.to(device)
 # print('load done')
 # input()
 #
@@ -225,4 +224,3 @@ if __name__ == '__main__':
 #         # optimizer.step()
 #
 #         input()
-
